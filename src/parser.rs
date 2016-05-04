@@ -12,8 +12,8 @@ impl<'a> Packet<'a> {
         let mut offset = Header::size();
         let mut questions = Vec::with_capacity(header.questions as usize);
         for _ in 0..header.questions {
-            let name = try!(Name::scan(&data[offset..], data));
-            offset += name.byte_len();
+            let (name, name_size) = try!(Name::scan(&data[offset..], data));
+            offset += name_size;
             if offset + 4 > data.len() {
                 return Err(Error::UnexpectedEOF);
             }
@@ -49,8 +49,8 @@ impl<'a> Packet<'a> {
 
 // Generic function to parse answer, nameservers, and additional records.
 fn parse_record<'a>(data: &'a [u8], offset: &mut usize) -> Result<ResourceRecord<'a>, Error> {
-    let name = try!(Name::scan(&data[*offset..], data));
-    *offset += name.byte_len();
+    let (name, name_size) = try!(Name::scan(&data[*offset..], data));
+    *offset += name_size;
     if *offset + 10 > data.len() {
         return Err(Error::UnexpectedEOF);
     }

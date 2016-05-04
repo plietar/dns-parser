@@ -17,5 +17,5 @@ pub use name::{Name};
 pub use error::{Error};
 pub use header::{Header};
 pub use rrdata::{RRData};
-pub use builder::{Builder};
+pub use builder::{Builder, Questions, Answers};
 

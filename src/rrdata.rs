@@ -1,6 +1,7 @@
+use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-use byteorder::{BigEndian, ByteOrder};
+use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 
 use {Name, Type, Error};
 
@@ -10,15 +11,57 @@ use {Name, Type, Error};
 pub enum RRData<'a> {
     CNAME(Name<'a>),
     NS(Name<'a>),
+    PTR(Name<'a>),
     A(Ipv4Addr),
     AAAA(Ipv6Addr),
     SRV { priority: u16, weight: u16, port: u16, target: Name<'a> },
     MX { preference: u16, exchange: Name<'a> },
     // Anything that can't be parsed yet
-    Unknown(&'a [u8]),
+    Unknown { typ: Type, data: &'a [u8] },
 }
 
 impl<'a> RRData<'a> {
+    pub fn typ(&self) -> Type {
+        match *self {
+            RRData::CNAME(..) => Type::CNAME,
+            RRData::NS(..) => Type::NS,
+            RRData::PTR(..) => Type::PTR,
+            RRData::A(..) => Type::A,
+            RRData::AAAA(..) => Type::AAAA,
+            RRData::SRV { .. } => Type::SRV,
+            RRData::MX { .. } => Type::MX,
+            RRData::Unknown { typ, .. } => typ,
+        }
+    }
+
+    pub fn write_to<T: io::Write>(&self, writer: &mut T) -> io::Result<()> {
+        match *self {
+            RRData::CNAME(name) |
+                RRData::NS(name) |
+                RRData::PTR(name) => name.write_to(writer),
+
+            RRData::A(ip) => writer.write_u32::<BigEndian>(ip.into()),
+
+            RRData::AAAA(ip) => {
+                for segment in ip.segments().into_iter() {
+                    try!(writer.write_u16::<BigEndian>(*segment));
+                }
+                Ok(())
+            }
+            RRData::SRV { priority, weight, port, target } => {
+                try!(writer.write_u16::<BigEndian>(priority));
+                try!(writer.write_u16::<BigEndian>(weight));
+                try!(writer.write_u16::<BigEndian>(port));
+                target.write_to(writer)
+            }
+            RRData::MX { preference, exchange } => {
+                try!(writer.write_u16::<BigEndian>(preference));
+                exchange.write_to(writer)
+            }
+            RRData::Unknown { data, .. } => writer.write_all(data),
+        }
+    }
+
     pub fn parse(typ: Type, rdata: &'a [u8], original: &'a [u8])
         -> Result<RRData<'a>, Error>
     {
@@ -46,10 +89,13 @@ impl<'a> RRData<'a> {
                 )))
             }
             Type::CNAME => {
-                Ok(RRData::CNAME(try!(Name::scan(rdata, original))))
+                Ok(RRData::CNAME(try!(Name::scan(rdata, original)).0))
             }
             Type::NS => {
-                Ok(RRData::NS(try!(Name::scan(rdata, original))))
+                Ok(RRData::NS(try!(Name::scan(rdata, original)).0))
+            }
+            Type::PTR => {
+                Ok(RRData::PTR(try!(Name::scan(rdata, original)).0))
             }
             Type::MX => {
                 if rdata.len() < 3 {
@@ -57,7 +103,7 @@ impl<'a> RRData<'a> {
                 }
                 Ok(RRData::MX {
                     preference: BigEndian::read_u16(&rdata[..2]),
-                    exchange: try!(Name::scan(&rdata[2..], original)),
+                    exchange: try!(Name::scan(&rdata[2..], original)).0,
                 })
             }
             Type::SRV => {
@@ -68,11 +114,14 @@ impl<'a> RRData<'a> {
                     priority: BigEndian::read_u16(&rdata[..2]),
                     weight: BigEndian::read_u16(&rdata[2..4]),
                     port: BigEndian::read_u16(&rdata[4..6]),
-                    target: try!(Name::scan(&rdata[6..], original)),
+                    target: try!(Name::scan(&rdata[6..], original)).0,
                 })
             }
-            _ => {
-                Ok(RRData::Unknown(rdata))
+            typ => {
+                Ok(RRData::Unknown {
+                    typ: typ,
+                    data: rdata
+                })
             }
         }
     }
