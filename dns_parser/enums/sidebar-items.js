@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Class","The CLASS value according to RFC 1035"],["Opcode","The OPCODE value according to RFC 1035"],["QueryClass","The QCLASS value according to RFC 1035"],["QueryType","The QTYPE value according to RFC 1035"],["ResponseCode","The RCODE value according to RFC 1035"],["Type","The TYPE value according to RFC 1035"]]});

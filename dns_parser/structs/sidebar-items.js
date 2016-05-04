@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Packet","Parsed DNS packet"],["Question","A parsed chunk of data in the Query section of the packet"],["ResourceRecord","A single DNS record"]]});

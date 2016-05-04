@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["RRData","The enumeration that represents known types of DNS resource records data"]]});
