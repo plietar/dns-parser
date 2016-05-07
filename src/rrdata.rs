@@ -7,7 +7,7 @@ use {Name, Type, Error};
 
 
 /// The enumeration that represents known types of DNS resource records data
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RRData<'a> {
     CNAME(Name<'a>),
     NS(Name<'a>),
@@ -16,6 +16,7 @@ pub enum RRData<'a> {
     AAAA(Ipv6Addr),
     SRV { priority: u16, weight: u16, port: u16, target: Name<'a> },
     MX { preference: u16, exchange: Name<'a> },
+    TXT(&'a [u8]),
     // Anything that can't be parsed yet
     Unknown { typ: Type, data: &'a [u8] },
 }
@@ -30,15 +31,16 @@ impl<'a> RRData<'a> {
             RRData::AAAA(..) => Type::AAAA,
             RRData::SRV { .. } => Type::SRV,
             RRData::MX { .. } => Type::MX,
+            RRData::TXT(..) => Type::TXT,
             RRData::Unknown { typ, .. } => typ,
         }
     }
 
     pub fn write_to<T: io::Write>(&self, writer: &mut T) -> io::Result<()> {
         match *self {
-            RRData::CNAME(name) |
-                RRData::NS(name) |
-                RRData::PTR(name) => name.write_to(writer),
+            RRData::CNAME(ref name) |
+                RRData::NS(ref name) |
+                RRData::PTR(ref name) => name.write_to(writer),
 
             RRData::A(ip) => writer.write_u32::<BigEndian>(ip.into()),
 
@@ -48,16 +50,17 @@ impl<'a> RRData<'a> {
                 }
                 Ok(())
             }
-            RRData::SRV { priority, weight, port, target } => {
+            RRData::SRV { priority, weight, port, ref target } => {
                 try!(writer.write_u16::<BigEndian>(priority));
                 try!(writer.write_u16::<BigEndian>(weight));
                 try!(writer.write_u16::<BigEndian>(port));
                 target.write_to(writer)
             }
-            RRData::MX { preference, exchange } => {
+            RRData::MX { preference, ref exchange } => {
                 try!(writer.write_u16::<BigEndian>(preference));
                 exchange.write_to(writer)
             }
+            RRData::TXT(data) => writer.write_all(data),
             RRData::Unknown { data, .. } => writer.write_all(data),
         }
     }
@@ -117,6 +120,7 @@ impl<'a> RRData<'a> {
                     target: try!(Name::scan(&rdata[6..], original)).0,
                 })
             }
+            Type::TXT => Ok(RRData::TXT(rdata)),
             typ => {
                 Ok(RRData::Unknown {
                     typ: typ,

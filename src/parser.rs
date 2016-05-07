@@ -20,13 +20,16 @@ impl<'a> Packet<'a> {
             let qtype = try!(QueryType::parse(
                 BigEndian::read_u16(&data[offset..offset+2])));
             offset += 2;
-            let qclass = try!(QueryClass::parse(
-                BigEndian::read_u16(&data[offset..offset+2])));
+            let qclass_qu = BigEndian::read_u16(&data[offset..offset+2]);
+            let qclass = try!(QueryClass::parse(qclass_qu & 0x7fff));
+            let qu = (qclass_qu & 0x8000) != 0;
+
             offset += 2;
             questions.push(Question {
                 qname: name,
                 qtype: qtype,
                 qclass: qclass,
+                qu: qu,
             });
         }
         let mut answers = Vec::with_capacity(header.answers as usize);

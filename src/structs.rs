@@ -17,6 +17,7 @@ pub struct Question<'a> {
     pub qname: Name<'a>,
     pub qtype: QueryType,
     pub qclass: QueryClass,
+    pub qu: bool,
 }
 
 /// A single DNS record

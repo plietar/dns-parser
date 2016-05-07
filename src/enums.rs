@@ -3,7 +3,7 @@ use {Error};
 /// The TYPE value according to RFC 1035
 ///
 /// All "EXPERIMENTAL" markers here are from the RFC
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Type {
     /// a host addresss
     A = 1,
@@ -46,7 +46,7 @@ pub enum Type {
 /// The QTYPE value according to RFC 1035
 ///
 /// All "EXPERIMENTAL" markers here are from the RFC
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum QueryType {
     /// a host addresss
     A = 1,
@@ -94,7 +94,7 @@ pub enum QueryType {
 
 
 /// The CLASS value according to RFC 1035
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Class {
     /// the Internet
     IN = 1,
@@ -108,7 +108,7 @@ pub enum Class {
 }
 
 /// The QCLASS value according to RFC 1035
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum QueryClass {
     /// the Internet
     IN = 1,
@@ -124,7 +124,7 @@ pub enum QueryClass {
 }
 
 /// The OPCODE value according to RFC 1035
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Opcode {
     StandardQuery,
     InverseQuery,
@@ -133,7 +133,7 @@ pub enum Opcode {
 }
 
 /// The RCODE value according to RFC 1035
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum ResponseCode {
     NoError,
     FormatError,

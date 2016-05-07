@@ -85,6 +85,62 @@ impl Header {
         let oldflags = BigEndian::read_u16(&data[2..4]);
         BigEndian::write_u16(&mut data[2..4], oldflags & flag::TRUNCATED);
     }
+
+    pub fn question_count(data: &[u8]) -> u16 {
+        BigEndian::read_u16(&data[4..6])
+    }
+
+    pub fn answer_count(data: &[u8]) -> u16 {
+        BigEndian::read_u16(&data[6..8])
+    }
+
+    pub fn nameserver_count(data: &[u8]) -> u16 {
+        BigEndian::read_u16(&data[8..10])
+    }
+
+    pub fn additional_count(data: &[u8]) -> u16 {
+        BigEndian::read_u16(&data[10..12])
+    }
+
+    pub fn inc_questions(data: &mut [u8]) -> Option<u16> {
+        let oldq = BigEndian::read_u16(&data[4..6]);
+        if oldq < 65535 {
+            BigEndian::write_u16(&mut data[4..6], oldq+1);
+            Some(oldq + 1)
+        } else {
+            None
+        }
+    }
+
+    pub fn inc_answers(data: &mut [u8]) -> Option<u16> {
+        let oldq = BigEndian::read_u16(&data[6..8]);
+        if oldq < 65535 {
+            BigEndian::write_u16(&mut data[6..8], oldq+1);
+            Some(oldq + 1)
+        } else {
+            None
+        }
+    }
+
+    pub fn inc_nameservers(data: &mut [u8]) -> Option<u16> {
+        let oldq = BigEndian::read_u16(&data[8..10]);
+        if oldq < 65535 {
+            BigEndian::write_u16(&mut data[8..10], oldq+1);
+            Some(oldq + 1)
+        } else {
+            None
+        }
+    }
+
+    pub fn inc_additional(data: &mut [u8]) -> Option<u16> {
+        let oldq = BigEndian::read_u16(&data[10..12]);
+        if oldq < 65535 {
+            BigEndian::write_u16(&mut data[10..12], oldq+1);
+            Some(oldq + 1)
+        } else {
+            None
+        }
+    }
     pub fn size() -> usize { 12 }
 }
 

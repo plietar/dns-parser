@@ -27,6 +27,7 @@ impl MoveTo<Additional> for Nameservers {}
 /// much of functionality is not implemented yet.
 pub struct Builder<S> {
     buf: Vec<u8>,
+    max_size: Option<usize>,
     _state: PhantomData<S>,
 }
 
@@ -53,7 +54,7 @@ impl Builder<Questions> {
         };
         buf.extend([0u8; 12].iter());
         head.write(&mut buf[..12]);
-        Builder { buf: buf, _state: PhantomData }
+        Builder { buf: buf, max_size: Some(512), _state: PhantomData }
     }
 
     pub fn new_response(id: u16, recursion: bool) -> Builder<Questions> {
@@ -74,13 +75,13 @@ impl Builder<Questions> {
         };
         buf.extend([0u8; 12].iter());
         head.write(&mut buf[..12]);
-        Builder { buf: buf, _state: PhantomData }
+        Builder { buf: buf, max_size: Some(512), _state: PhantomData }
     }
 }
 
 impl <T> Builder<T> {
-    fn write_rr(&mut self, name: Name,
-        cls: QueryClass, ttl: u32, data: RRData) {
+    fn write_rr(&mut self, name: &Name,
+        cls: QueryClass, ttl: u32, data: &RRData) {
 
         name.write_to(&mut self.buf).unwrap();
         self.buf.write_u16::<BigEndian>(data.typ() as u16).unwrap();
@@ -113,16 +114,28 @@ impl <T> Builder<T> {
     // to treat it for EDNS0?
     pub fn build(mut self) -> Result<Vec<u8>,Vec<u8>> {
         // TODO(tailhook) optimize labels
-        if self.buf.len() > 512 {
-            Header::set_truncated(&mut self.buf[..12]);
-            Err(self.buf)
-        } else {
-            Ok(self.buf)
+        match self.max_size {
+            Some(max_size) if self.buf.len() > max_size => {
+                Header::set_truncated(&mut self.buf[..12]);
+                Err(self.buf)
+            }
+            _ => Ok(self.buf),
         }
     }
 
     pub fn move_to<U>(self) -> Builder<U> where T: MoveTo<U> {
-        Builder { buf: self.buf, _state: PhantomData }
+        Builder { buf: self.buf, max_size: self.max_size, _state: PhantomData }
+    }
+
+    pub fn set_max_size(&mut self, max_size: Option<usize>) {
+        self.max_size = max_size;
+    }
+
+    pub fn is_empty(&self) -> bool {
+        Header::question_count(&self.buf) == 0 &&
+            Header::answer_count(&self.buf) == 0 &&
+            Header::nameserver_count(&self.buf) == 0 &&
+            Header::additional_count(&self.buf) == 0
     }
 }
 
@@ -132,8 +145,7 @@ impl <T: MoveTo<Questions>> Builder<T> {
     /// # Panics
     ///
     /// * There are already 65535 questions in the buffer.
-    /// * When name is invalid
-    pub fn add_question(self, qname: Name,
+    pub fn add_question(self, qname: &Name,
         qtype: QueryType, qclass: QueryClass)
         -> Builder<Questions>
     {
@@ -142,68 +154,52 @@ impl <T: MoveTo<Questions>> Builder<T> {
         qname.write_to(&mut builder.buf).unwrap();
         builder.buf.write_u16::<BigEndian>(qtype as u16).unwrap();
         builder.buf.write_u16::<BigEndian>(qclass as u16).unwrap();
-        let oldq = BigEndian::read_u16(&builder.buf[4..6]);
-        if oldq == 65535 {
-            panic!("Too many questions");
-        }
-        BigEndian::write_u16(&mut builder.buf[4..6], oldq+1);
-
+        Header::inc_questions(&mut builder.buf)
+            .expect("Too many questions");
         builder
     }
 }
 
 impl <T: MoveTo<Answers>> Builder<T> {
-    pub fn add_answer(self, name: Name,
-        cls: QueryClass, ttl: u32, data: RRData)
+    pub fn add_answer(self, name: &Name,
+        cls: QueryClass, ttl: u32, data: &RRData)
         -> Builder<Answers>
     {
         let mut builder = self.move_to::<Answers>();
 
         builder.write_rr(name, cls, ttl, data);
-
-        let olda = BigEndian::read_u16(&builder.buf[6..8]);
-        if olda == 65535 {
-            panic!("Too many answers");
-        }
-        BigEndian::write_u16(&mut builder.buf[6..8], olda+1);
+        Header::inc_answers(&mut builder.buf)
+            .expect("Too many answers");
 
         builder
     }
 }
 
 impl <T: MoveTo<Nameservers>> Builder<T> {
-    pub fn add_nameserver(self, name: Name,
-        cls: QueryClass, ttl: u32, data: RRData)
+    pub fn add_nameserver(self, name: &Name,
+        cls: QueryClass, ttl: u32, data: &RRData)
         -> Builder<Nameservers>
     {
         let mut builder = self.move_to::<Nameservers>();
 
         builder.write_rr(name, cls, ttl, data);
-
-        let oldn = BigEndian::read_u16(&builder.buf[8..10]);
-        if oldn == 65535 {
-            panic!("Too many nameservers");
-        }
-        BigEndian::write_u16(&mut builder.buf[8..10], oldn+1);
+        Header::inc_nameservers(&mut builder.buf)
+            .expect("Too many nameservers");
 
         builder
     }
 }
 
 impl Builder<Additional> {
-    pub fn add_additional(self, name: Name,
-        cls: QueryClass, ttl: u32, data: RRData)
+    pub fn add_additional(self, name: &Name,
+        cls: QueryClass, ttl: u32, data: &RRData)
         -> Builder<Additional>
     {
         let mut builder = self.move_to::<Additional>();
 
         builder.write_rr(name, cls, ttl, data);
-
-        let olda = BigEndian::read_u16(&builder.buf[10..12]);
-        if olda == 65535 {
-            panic!("Too many additional records");
-        }
-        BigEndian::write_u16(&mut builder.buf[10..12], olda+1);
+        Header::inc_nameservers(&mut builder.buf)
+            .expect("Too many additional answers");
 
         builder
     }

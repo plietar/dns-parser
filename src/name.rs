@@ -3,6 +3,8 @@ use std::fmt;
 use std::fmt::Write;
 use std::str::from_utf8;
 use std::ascii::AsciiExt;
+use std::borrow::Cow;
+use std::hash;
 
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 
@@ -12,7 +14,7 @@ use {Error};
 ///
 /// This is contains just a reference to a slice that contains the data.
 /// You may turn this into a string using `.to_string()`
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Name<'a> {
     FromPacket {
         labels: &'a [u8],
@@ -21,7 +23,7 @@ pub enum Name<'a> {
         original: &'a [u8],
     },
 
-    FromStr(&'a str)
+    FromStr(Cow<'a, str>),
 }
 
 impl<'a> Name<'a> {
@@ -62,8 +64,8 @@ impl<'a> Name<'a> {
         }
     }
 
-    pub fn from_str(name: &'a str) -> Result<Name<'a>, Error> {
-        Ok(Name::FromStr(name))
+    pub fn from_str<T: Into<Cow<'static, str>>>(name: T) -> Result<Name<'a>, Error> {
+        Ok(Name::FromStr(name.into()))
     }
 
     pub fn write_to<T: io::Write>(&self, writer: &mut T) -> io::Result<()> {
@@ -90,7 +92,7 @@ impl<'a> Name<'a> {
                 }
             }
 
-            Name::FromStr(name) => {
+            Name::FromStr(ref name) => {
                 for part in name.split('.') {
                     assert!(part.len() < 63);
                     let ln = part.len() as u8;
@@ -136,7 +138,30 @@ impl<'a> fmt::Display for Name<'a> {
                 }
             }
 
-            Name::FromStr(name) => fmt.write_str(name)
+            Name::FromStr(ref name) => fmt.write_str(&name)
         }
     }
 }
+
+impl <'a> hash::Hash for Name<'a> {
+    fn hash<H>(&self, state: &mut H) where H: hash::Hasher {
+        let mut buffer = Vec::new();
+        self.write_to(&mut buffer).unwrap();
+        hash::Hash::hash(&buffer, state)
+    }
+}
+
+impl <'a> PartialEq for Name<'a> {
+    fn eq(&self, other: &Name) -> bool {
+        let mut buffer = Vec::new();
+        self.write_to(&mut buffer).unwrap();
+
+        let mut other_buffer = Vec::new();
+        other.write_to(&mut other_buffer).unwrap();
+
+        buffer == other_buffer
+    }
+}
+
+impl <'a> Eq for Name<'a> {}
+
