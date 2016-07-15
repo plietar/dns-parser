@@ -2,7 +2,6 @@ use std::io;
 use std::fmt;
 use std::fmt::Write;
 use std::str::from_utf8;
-use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::hash;
 
@@ -50,7 +49,7 @@ impl<'a> Name<'a> {
                 return Ok((Name::FromPacket { labels: &data[..pos+2], original: original }, pos + 2));
             } else if byte & 0b1100_0000 == 0 {
                 let end = pos + byte as usize + 1;
-                if !data[pos+1..end].is_ascii() {
+                if from_utf8(&data[pos+1..end]).is_err() {
                     return Err(Error::LabelIsNotAscii);
                 }
                 pos = end;
@@ -164,4 +163,3 @@ impl <'a> PartialEq for Name<'a> {
 }
 
 impl <'a> Eq for Name<'a> {}
-
