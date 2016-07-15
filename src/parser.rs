@@ -61,7 +61,7 @@ fn parse_record<'a>(data: &'a [u8], offset: &mut usize) -> Result<ResourceRecord
         BigEndian::read_u16(&data[*offset..*offset+2])));
     *offset += 2;
     let cls = try!(Class::parse(
-        BigEndian::read_u16(&data[*offset..*offset+2])));
+        BigEndian::read_u16(&data[*offset..*offset+2]) & 0x7fff ));
     *offset += 2;
     let mut ttl = BigEndian::read_u32(&data[*offset..*offset+4]);
     if ttl > i32::MAX as u32 {
