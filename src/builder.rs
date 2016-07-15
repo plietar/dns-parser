@@ -216,7 +216,7 @@ mod test {
     fn build_query() {
         let mut bld = Builder::new_query(1573, true);
         let name = Name::from_str("example.com").unwrap();
-        bld = bld.add_question(name, QT::A, QC::IN);
+        bld = bld.add_question(&name, QT::A, QC::IN);
         let result = b"\x06%\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\
                       \x07example\x03com\x00\x00\x01\x00\x01";
         assert_eq!(&bld.build().unwrap()[..], &result[..]);
@@ -226,7 +226,7 @@ mod test {
     fn build_srv_query() {
         let mut bld = Builder::new_query(23513, true);
         let name = Name::from_str("_xmpp-server._tcp.gmail.com").unwrap();
-        bld = bld.add_question(name, QT::SRV, QC::IN);
+        bld = bld.add_question(&name, QT::SRV, QC::IN);
         let result = b"[\xd9\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\
             \x0c_xmpp-server\x04_tcp\x05gmail\x03com\x00\x00!\x00\x01";
         assert_eq!(&bld.build().unwrap()[..], &result[..]);
