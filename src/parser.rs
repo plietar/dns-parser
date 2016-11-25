@@ -61,7 +61,7 @@ fn parse_record<'a>(data: &'a [u8], offset: &mut usize) -> Result<ResourceRecord
         BigEndian::read_u16(&data[*offset..*offset+2])));
     *offset += 2;
     let cls = try!(Class::parse(
-        BigEndian::read_u16(&data[*offset..*offset+2])));
+        BigEndian::read_u16(&data[*offset..*offset+2]) & 0x7fff ));
     *offset += 2;
     let mut ttl = BigEndian::read_u32(&data[*offset..*offset+4]);
     if ttl > i32::MAX as u32 {
@@ -194,7 +194,7 @@ mod test {
          assert_eq!(packet.answers[0].cls, C::IN);
          assert_eq!(packet.answers[0].ttl, 3600);
          match packet.answers[0].data {
-             RRData::CNAME(cname) => {
+             RRData::CNAME(ref cname) => {
                  assert_eq!(&cname.to_string()[..], "livecms.trafficmanager.net");
              }
              ref x => panic!("Wrong rdata {:?}", x),
@@ -204,7 +204,7 @@ mod test {
          assert_eq!(packet.nameservers[0].cls, C::IN);
          assert_eq!(packet.nameservers[0].ttl, 120275);
          match packet.nameservers[0].data {
-             RRData::NS(ns) => {
+             RRData::NS(ref ns) => {
                  assert_eq!(&ns.to_string()[..], "g.gtld-servers.net");
              }
              ref x => panic!("Wrong rdata {:?}", x),
@@ -339,7 +339,7 @@ mod test {
             assert_eq!(packet.answers[i].cls, C::IN);
             assert_eq!(packet.answers[i].ttl, 900);
             match *&packet.answers[i].data {
-                RRData::SRV { priority, weight, port, target } => {
+                RRData::SRV { priority, weight, port, ref target } => {
                     assert_eq!(priority, items[i].0);
                     assert_eq!(weight, items[i].1);
                     assert_eq!(port, items[i].2);
@@ -394,7 +394,7 @@ mod test {
             assert_eq!(packet.answers[i].cls, C::IN);
             assert_eq!(packet.answers[i].ttl, 1148);
             match *&packet.answers[i].data {
-                RRData::MX { preference, exchange } => {
+                RRData::MX { preference, ref exchange } => {
                     assert_eq!(preference, items[i].0);
                     assert_eq!(exchange.to_string(), (items[i].1).to_string());
                 }
@@ -482,7 +482,7 @@ mod test {
         assert_eq!(packet.answers[0].cls, C::IN);
         assert_eq!(packet.answers[0].ttl, 102);
         match packet.answers[0].data {
-            RRData::CNAME(cname) => {
+            RRData::CNAME(ref cname) => {
                 assert_eq!(&cname.to_string(), "sstatic.net");
             }
             ref x => panic!("Wrong rdata {:?}", x),
